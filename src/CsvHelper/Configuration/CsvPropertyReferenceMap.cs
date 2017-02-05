@@ -1,56 +1,66 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
+#if !NET_2_0
 using System;
 using System.Reflection;
 
 namespace CsvHelper.Configuration
 {
 	/// <summary>
-	/// Mapping info for a reference property mapping to a class.
+	/// Mapping info for a reference property/field mapping to a class.
 	/// </summary>
 	public class CsvPropertyReferenceMap
 	{
-		private readonly PropertyInfo property;
+		private readonly CsvPropertyReferenceMapData data;
 
 		/// <summary>
-		/// Gets the property.
+		/// Gets the property/field reference map data.
 		/// </summary>
-		public PropertyInfo Property
-		{
-			get { return property; }
-		}
-
-		/// <summary>
-		/// Gets the mapping.
-		/// </summary>
-		public CsvClassMap Mapping { get; protected set; }
+		public CsvPropertyReferenceMapData Data => data;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="CsvPropertyReferenceMap"/> class.
 		/// </summary>
-		/// <param name="property">The property.</param>
+		/// <param name="member">The property/field.</param>
 		/// <param name="mapping">The <see cref="CsvClassMap"/> to use for the reference map.</param>
-		public CsvPropertyReferenceMap( PropertyInfo property, CsvClassMap mapping )
+		public CsvPropertyReferenceMap( MemberInfo member, CsvClassMap mapping )
 		{
 			if( mapping == null )
 			{
-				throw new ArgumentNullException( "mapping" );
+				throw new ArgumentNullException( nameof( mapping ) );
 			}
 
-			this.property = property;
-			Mapping = mapping;
+			data = new CsvPropertyReferenceMapData( member, mapping );
+		}
+
+		/// <summary>
+		/// Appends a prefix to the header of each field of the reference property/field.
+		/// </summary>
+		/// <param name="prefix">The prefix to be prepended to headers of each reference property/field.</param>
+		/// <returns>The current <see cref="CsvPropertyReferenceMap" /></returns>
+		public CsvPropertyReferenceMap Prefix( string prefix = null )
+		{
+			if( string.IsNullOrEmpty( prefix ) )
+			{
+				prefix = data.Member.Name + ".";
+			}
+
+			data.Prefix = prefix;
+
+			return this;
 		}
 
 		/// <summary>
 		/// Get the largest index for the
-		/// properties and references.
+		/// properties/fields and references.
 		/// </summary>
 		/// <returns>The max index.</returns>
 		internal int GetMaxIndex()
 		{
-			return Mapping.GetMaxIndex();
+			return data.Mapping.GetMaxIndex();
 		}
 	}
 }
+#endif // !NET_2_0

@@ -1,39 +1,27 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-#if !NET_2_0
 using System.Linq;
-#endif
 using System.Reflection;
 using System.Text;
 using CsvHelper.TypeConversion;
-#if WINRT_4_5
-using CsvHelper.MissingFromRt45;
-#endif
 
 namespace CsvHelper.Configuration
 {
 	/// <summary>
 	/// Configuration used for reading and writing CSV data.
 	/// </summary>
-	public class CsvConfiguration
+	public class CsvConfiguration : ICsvReaderConfiguration, ICsvWriterConfiguration
 	{
-#if !WINRT_4_5
-		private BindingFlags propertyBindingFlags = BindingFlags.Public | BindingFlags.Instance;
-#endif
-		private bool hasHeaderRecord = true;
-		private bool willThrowOnMissingField = true;
-		private string delimiter = ",";
+		private string delimiter = CultureInfo.CurrentCulture.TextInfo.ListSeparator;
 		private char quote = '"';
-		private char comment = '#';
-		private int bufferSize = 2048;
-		private bool isHeaderCaseSensitive = true;
-		private Encoding encoding = Encoding.UTF8;
+		private string quoteString = "\"";
+		private string doubleQuoteString = "\"\"";
+		private char[] quoteRequiredChars;
 		private CultureInfo cultureInfo = CultureInfo.CurrentCulture;
 		private bool quoteAllFields;
 		private bool quoteNoFields;
@@ -41,39 +29,31 @@ namespace CsvHelper.Configuration
 		private readonly CsvClassMapCollection maps = new CsvClassMapCollection();
 #endif
 
-#if !NET_2_0
 		/// <summary>
-		/// The configured <see cref="CsvClassMap"/>s.
+		/// Gets or sets the <see cref="TypeConverterOptionsFactory"/>.
 		/// </summary>
-		public virtual CsvClassMapCollection Maps
-		{
-			get { return maps; }
-		}
-#endif
+		public virtual TypeConverterOptionsFactory TypeConverterOptionsFactory { get; set; } = new TypeConverterOptionsFactory();
 
-#if !WINRT_4_5
 		/// <summary>
-		/// Gets or sets the property binding flags.
-		/// This determines what properties on the custom
+		/// Gets or sets the property/field binding flags.
+		/// This determines what properties/fields on the custom
 		/// class are used. Default is Public | Instance.
 		/// </summary>
-		public virtual BindingFlags PropertyBindingFlags
-		{
-			get { return propertyBindingFlags; }
-			set { propertyBindingFlags = value; }
-		}
-#endif
+		public virtual BindingFlags PropertyBindingFlags { get; set; } = BindingFlags.Public | BindingFlags.Instance;
 
 		/// <summary>
 		/// Gets or sets a value indicating if the
 		/// CSV file has a header record.
 		/// Default is true.
 		/// </summary>
-		public virtual bool HasHeaderRecord
-		{
-			get { return hasHeaderRecord; }
-			set { hasHeaderRecord = value; }
-		}
+		public virtual bool HasHeaderRecord { get; set; } = true;
+
+		/// <summary>
+		/// Gets or sets a value indicating the if the CSV
+		/// file contains the Excel "sep=delimeter" config
+		/// option in the first row.
+		/// </summary>
+		public virtual bool HasExcelSeparator { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating if an exception will be
@@ -81,11 +61,7 @@ namespace CsvHelper.Configuration
 		/// True to throw an exception, otherwise false.
 		/// Default is true.
 		/// </summary>
-		public virtual bool WillThrowOnMissingField
-		{
-			get { return willThrowOnMissingField; }
-			set { willThrowOnMissingField = value; }
-		}
+		public virtual bool WillThrowOnMissingField { get; set; } = true;
 
 		/// <summary>
 		/// Gets or sets a value indicating whether changes in the column
@@ -98,29 +74,19 @@ namespace CsvHelper.Configuration
 		public virtual bool DetectColumnCountChanges { get; set; }
 
 		/// <summary>
-		/// Gets or sets a value indicating whether matching header
-		/// column names is case sensitive. True for case sensitive
-		/// matching, otherwise false. Default is true.
+		/// Prepares the header field for matching against a property/field name.
+		/// The header field and the property/field name are both ran through this function.
+		/// You should do things like trimming, removing whitespace, removing underscores,
+		/// and making casing changes to ignore case.
 		/// </summary>
-		public virtual bool IsHeaderCaseSensitive
-		{
-			get { return isHeaderCaseSensitive; }
-			set { isHeaderCaseSensitive = value; }
-		}
+		public virtual Func<string, string> PrepareHeaderForMatch { get; set; } = header => header;
 
 		/// <summary>
-		/// Gets or sets a value indicating whether matcher header
-		/// column names will ignore white space. True to ignore
-		/// white space, otherwise false. Default is false.
+		/// Gets or sets a value indicating whether references
+		/// should be ignored when auto mapping. True to ignore
+		/// references, otherwise false. Default is false.
 		/// </summary>
-		public virtual bool IgnoreHeaderWhiteSpace { get; set; }
-
-		/// <summary>
-		/// Gets or sets a value indicating whether headers
-		/// should be trimmed. True to trim headers,
-		/// otherwise false. Default is false.
-		/// </summary>
-		public virtual bool TrimHeaders { get; set; }
+		public virtual bool IgnoreReferences { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether fields
@@ -142,23 +108,29 @@ namespace CsvHelper.Configuration
 				{
 					throw new CsvConfigurationException( "Newline is not a valid delimiter." );
 				}
+
 				if( value == "\r" )
 				{
 					throw new CsvConfigurationException( "Carriage return is not a valid delimiter." );
 				}
+
 				if( value == "\0" )
 				{
 					throw new CsvConfigurationException( "Null is not a valid delimiter." );
 				}
+
 				if( value == Convert.ToString( quote ) )
 				{
 					throw new CsvConfigurationException( "You can not use the quote as a delimiter." );
 				}
+
 				delimiter = value;
+
+				BuildRequiredQuoteChars();
 			}
 		}
 
-		/// <summary>
+        /// <summary>
 		/// Gets or sets the character used to quote fields.
 		/// Default is '"'.
 		/// </summary>
@@ -171,31 +143,56 @@ namespace CsvHelper.Configuration
 				{
 					throw new CsvConfigurationException( "Newline is not a valid quote." );
 				}
+
 				if( value == '\r' )
 				{
 					throw new CsvConfigurationException( "Carriage return is not a valid quote." );
 				}
+
 				if( value == '\0' )
 				{
 					throw new CsvConfigurationException( "Null is not a valid quote." );
 				}
+
 				if( Convert.ToString( value ) == delimiter )
 				{
 					throw new CsvConfigurationException( "You can not use the delimiter as a quote." );
 				}
+
 				quote = value;
+
+				quoteString = Convert.ToString( value, cultureInfo );
+				doubleQuoteString = quoteString + quoteString;
 			}
 		}
+
+		/// <summary>
+		/// Gets a string representation of the currently configured Quote character.
+		/// </summary>
+		/// <value>
+		/// The new quote string.
+		/// </value>
+		public virtual string QuoteString => quoteString;
+
+		/// <summary>
+		/// Gets a string representation of two of the currently configured Quote characters.
+		/// </summary>
+		/// <value>
+		/// The new double quote string.
+		/// </value>
+		public virtual string DoubleQuoteString => doubleQuoteString;
+
+		/// <summary>
+		/// Gets an array characters that require
+		/// the field to be quoted.
+		/// </summary>
+		public virtual char[] QuoteRequiredChars => quoteRequiredChars;
 
 		/// <summary>
 		/// Gets or sets the character used to denote
 		/// a line that is commented out. Default is '#'.
 		/// </summary>
-		public virtual char Comment
-		{
-			get { return comment; }
-			set { comment = value; }
-		}
+		public virtual char Comment { get; set; } = '#';
 
 		/// <summary>
 		/// Gets or sets a value indicating if comments are allowed.
@@ -208,11 +205,7 @@ namespace CsvHelper.Configuration
 		/// used for reading and writing CSV files.
 		/// Default is 2048.
 		/// </summary>
-		public virtual int BufferSize
-		{
-			get { return bufferSize; }
-			set { bufferSize = value; }
-		}
+		public virtual int BufferSize { get; set; } = 2048;
 
 		/// <summary>
 		/// Gets or sets a value indicating whether all fields are quoted when writing,
@@ -270,11 +263,7 @@ namespace CsvHelper.Configuration
 		/// <summary>
 		/// Gets or sets the encoding used when counting bytes.
 		/// </summary>
-		public virtual Encoding Encoding
-		{
-			get { return encoding; }
-			set { encoding = value; }
-		}
+		public virtual Encoding Encoding { get; set; } = Encoding.UTF8;
 
 		/// <summary>
 		/// Gets or sets the culture info used to read an write CSV files.
@@ -295,6 +284,13 @@ namespace CsvHelper.Configuration
 		public virtual bool SkipEmptyRecords { get; set; }
 
 		/// <summary>
+		/// Gets or sets the callback that will be called to
+		/// determine whether to skip the given record or not.
+		/// This overrides the <see cref="SkipEmptyRecords"/> setting.
+		/// </summary>
+		public virtual Func<string[], bool> ShouldSkipRecord { get; set; }
+
+		/// <summary>
 		/// Gets or sets a value indicating if quotes should be
 		/// ingored when parsing and treated like any other character.
 		/// </summary>
@@ -302,51 +298,123 @@ namespace CsvHelper.Configuration
 
 		/// <summary>
 		/// Gets or sets a value indicating if private
-		/// get and set property accessors should be
-		/// ignored when reading and writing.
-		/// True to ignore, otherwise false. Default is false.
+		/// properties/fields should be read from and written to.
+		/// True to include private properties/fields, otherwise false. Default is false.
 		/// </summary>
-		public virtual bool IgnorePrivateAccessor { get; set; }
+		public virtual bool IncludePrivateMembers { get; set; }
 
-#if !NET_2_0
+		/// <summary>
+		/// Gets or sets the member types that are used when auto mapping.
+		/// MemberTypes are flags, so you can choose more than one.
+		/// Default is Properties.
+		/// </summary>
+		public virtual MemberTypes MemberTypes { get; set; } = MemberTypes.Properties;
+
+		/// <summary>
+		/// Gets or sets a value indicating if blank lines
+		/// should be ignored when reading.
+		/// True to ignore, otherwise false. Default is true.
+		/// </summary>
+		public virtual bool IgnoreBlankLines { get; set; } = true;
+
+		/// <summary>
+        /// Gets or sets a value indicating if an Excel specific
+        /// format should be used when writing fields containing
+        /// numeric values. e.g. 00001 -> ="00001"
+        /// </summary>
+		public virtual bool UseExcelLeadingZerosFormatForNumerics { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if headers of reference
+		/// properties/fields should get prefixed by the parent property/field
+		/// name when automapping.
+		/// True to prefix, otherwise false. Default is false.
+		/// </summary>
+		public virtual bool PrefixReferenceHeaders { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating if an exception should
+		/// be thrown when bad field data is detected.
+		/// True to throw, otherwise false. Default is false.
+		/// </summary>
+		public virtual bool ThrowOnBadData { get; set; }
+
+		/// <summary>
+		/// Gets or sets a method that gets called when bad
+		/// data is detected.
+		/// </summary>
+		public virtual Action<string> BadDataCallback { get; set; }
+
+		/// <summary>
+		/// Creates a new CsvConfiguration.
+		/// </summary>
+		public CsvConfiguration()
+		{
+			BuildRequiredQuoteChars();
+		}
+
 		/// <summary>
 		/// Gets or sets a value indicating whether
 		/// exceptions that occur duruing reading
 		/// should be ignored. True to ignore exceptions,
 		/// otherwise false. Default is false.
-		/// This is only applicable when during
-		/// <see cref="ICsvReaderRow.GetRecords{T}"/>.
 		/// </summary>
 		public virtual bool IgnoreReadingExceptions { get; set; }
 
 		/// <summary>
 		/// Gets or sets the callback that is called when a reading
 		/// exception occurs. This will only happen when
-		/// <see cref="IgnoreReadingExceptions"/> is true, and when
-		/// calling <see cref="ICsvReaderRow.GetRecords{T}"/>.
+		/// <see cref="IgnoreReadingExceptions"/> is true.
 		/// </summary>
-		public virtual Action<Exception, ICsvReader> ReadingExceptionCallback { get; set; }
+		public virtual Action<CsvHelperException, ICsvReader> ReadingExceptionCallback { get; set; }
+
+		/// <summary>
+		/// Builds the values for the RequiredQuoteChars property.
+		/// </summary>
+		private void BuildRequiredQuoteChars()
+		{
+			quoteRequiredChars = delimiter.Length > 1 ?
+				new[] { '\r', '\n' } :
+				new[] { '\r', '\n', delimiter[0] };
+		}
+		
+#if !NET_2_0
+
+		/// <summary>
+		/// The configured <see cref="CsvClassMap"/>s.
+		/// </summary>
+		public virtual CsvClassMapCollection Maps => maps;
+
+		/// <summary>
+		/// Gets or sets a value indicating that during writing if a new 
+		/// object should be created when a reference property/field is null.
+		/// True to create a new object and use it's defaults for the
+		/// fields, or false to leave the fields empty for all the
+		/// reference property/field's properties/fields.
+		/// </summary>
+		public virtual bool UseNewObjectForNullReferenceMembers { get; set; } = true;
 
 		/// <summary>
 		/// Use a <see cref="CsvClassMap{T}" /> to configure mappings.
-		/// When using a class map, no properties are mapped by default.
-		/// Only properties specified in the mapping are used.
+		/// When using a class map, no properties/fields are mapped by default.
+		/// Only properties/fields specified in the mapping are used.
 		/// </summary>
 		/// <typeparam name="TMap">The type of mapping class to use.</typeparam>
-		public virtual void RegisterClassMap<TMap>()
-			where TMap : CsvClassMap
+		public virtual TMap RegisterClassMap<TMap>() where TMap : CsvClassMap
 		{
 			var map = ReflectionHelper.CreateInstance<TMap>();
 			RegisterClassMap( map );
+
+			return map;
 		}
 
 		/// <summary>
 		/// Use a <see cref="CsvClassMap{T}" /> to configure mappings.
-		/// When using a class map, no properties are mapped by default.
-		/// Only properties specified in the mapping are used.
+		/// When using a class map, no properties/fields are mapped by default.
+		/// Only properties/fields specified in the mapping are used.
 		/// </summary>
 		/// <param name="classMapType">The type of mapping class to use.</param>
-		public virtual void RegisterClassMap( Type classMapType )
+		public virtual CsvClassMap RegisterClassMap( Type classMapType )
 		{
 			if( !typeof( CsvClassMap ).IsAssignableFrom( classMapType ) )
 			{
@@ -355,6 +423,8 @@ namespace CsvHelper.Configuration
 
 			var map = (CsvClassMap)ReflectionHelper.CreateInstance( classMapType );
 			RegisterClassMap( map );
+
+			return map;
 		}
 
 		/// <summary>
@@ -363,8 +433,6 @@ namespace CsvHelper.Configuration
 		/// <param name="map">The class map to register.</param>
 		public virtual void RegisterClassMap( CsvClassMap map )
 		{
-			map.CreateMap();
-
 			if( map.Constructor == null && map.PropertyMaps.Count == 0 && map.ReferenceMaps.Count == 0 )
 			{
 				throw new CsvConfigurationException( "No mappings were specified in the CsvClassMap." );
@@ -377,7 +445,7 @@ namespace CsvHelper.Configuration
 		/// Unregisters the class map.
 		/// </summary>
 		/// <typeparam name="TMap">The map type to unregister.</typeparam>
-		public virtual void UnregisterClassMap<TMap>()
+		public virtual void UnregisterClassMap<TMap>() 
 			where TMap : CsvClassMap
 		{
 			UnregisterClassMap( typeof( TMap ) );
@@ -417,118 +485,14 @@ namespace CsvHelper.Configuration
 		/// <returns>The generate map.</returns>
 		public virtual CsvClassMap AutoMap( Type type )
 		{
-			var mapParents = new LinkedList<Type>();
-			return AutoMapInternal( type, -1, mapParents );
-		}
-
-		/// <summary>
-		/// Generates a <see cref="CsvClassMap"/> for the type.
-		/// This internal method is used to pass extra information
-		/// along so circular references can be checked, and
-		/// property maps can be auto indexed.
-		/// </summary>
-		/// <param name="type">The type to generate for the map.</param>
-		/// <param name="indexStart">The index that is started from.</param>
-		/// <param name="mapParents">The list of parents for the map.</param>
-		/// <returns></returns>
-		internal virtual CsvClassMap AutoMapInternal( Type type, int indexStart, LinkedList<Type> mapParents )
-		{
-			if( typeof( IEnumerable ).IsAssignableFrom( type ) )
-			{
-				throw new CsvConfigurationException( "Types that inhererit IEnumerable cannot be auto mapped. " +
-													 "Did you accidentally call GetRecord or WriteRecord which " +
-													 "acts on a single record instead of calling GetRecords or " +
-													 "WriteRecords which acts on a list of records?" );
-			}
-
-			if( maps[type] != null )
-			{
-				// If the map already exists, use it.
-				return maps[type];
-			}
-
-#if WINRT_4_5
-			var properties = type.GetProperties();
-#else
-			var properties = type.GetProperties( propertyBindingFlags );
-#endif
 			var mapType = typeof( DefaultCsvClassMap<> ).MakeGenericType( type );
 			var map = (CsvClassMap)ReflectionHelper.CreateInstance( mapType );
-			map.IndexStart = indexStart;
-			foreach( var property in properties )
-			{
-				var isDefaultConverter = TypeConverterFactory.GetConverter( property.PropertyType ).GetType() == typeof( DefaultTypeConverter );
-#if WINRT_4_5
-				var hasDefaultConstructor = property.PropertyType.GetTypeInfo().DeclaredConstructors.Any( c => !c.GetParameters().Any() );
-#else
-				var hasDefaultConstructor = property.PropertyType.GetConstructor( Type.EmptyTypes ) != null;
-#endif
-				if( isDefaultConverter && hasDefaultConstructor )
-				{
-					// If the type is not one covered by our type converters
-					// and it has a parameterless constructor, create a
-					// reference map for it.
-					if( CheckForCircularReference( property.PropertyType, mapParents ) )
-					{
-						continue;
-					}
-
-					mapParents.AddLast( type );
-					var refMap = AutoMapInternal( property.PropertyType, map.GetMaxIndex(), mapParents );
-					if( refMap.PropertyMaps.Count > 0 || refMap.ReferenceMaps.Count > 0 )
-					{
-						map.ReferenceMaps.Add( new CsvPropertyReferenceMap( property, refMap ) );
-					}
-				}
-				else
-				{
-					var propertyMap = new CsvPropertyMap( property );
-					propertyMap.Data.Index = map.GetMaxIndex() + 1;
-					if( propertyMap.Data.TypeConverter.CanConvertFrom( typeof( string ) ) ||
-						propertyMap.Data.TypeConverter.CanConvertTo( typeof( string ) ) && !isDefaultConverter )
-					{
-						// Only add the property map if it can be converted later on.
-						// If the property will use the default converter, don't add it because
-						// we don't want the .ToString() value to be used when auto mapping.
-						map.PropertyMaps.Add( propertyMap );
-					}
-				}
-			}
+			map.AutoMap( new AutoMapOptions( this ) );
 
 			return map;
 		}
 
-		/// <summary>
-		/// Checks for circular references.
-		/// </summary>
-		/// <param name="type">The type to check for.</param>
-		/// <param name="mapParents">The list of parents to check against.</param>
-		/// <returns>A value indicating if a circular reference was found.
-		/// True if a circular reference was found, otherwise false.</returns>
-		internal virtual bool CheckForCircularReference( Type type, LinkedList<Type> mapParents )
-		{
-			if( mapParents.Count == 0 )
-			{
-				return false;
-			}
-
-			var node = mapParents.Last;
-			while( true )
-			{
-				if( node.Value == type )
-				{
-					return true;
-				}
-
-				node = node.Previous;
-				if( node == null )
-				{
-					break;
-				}
-			}
-
-			return false;
-		}
 #endif
+
 	}
 }

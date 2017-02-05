@@ -1,6 +1,6 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System.Collections.Generic;
 using System.IO;
@@ -85,6 +85,44 @@ namespace CsvHelper.Tests
 		}
 
 		[TestMethod]
+		public void ConvertUsingCovarianceTest()
+		{
+			var queue = new Queue<string[]>();
+			queue.Enqueue( new string[] { "1", "2" } );
+			queue.Enqueue( null );
+
+			var parserMock = new ParserMock( queue );
+
+			var csvReader = new CsvReader( parserMock );
+			csvReader.Configuration.HasHeaderRecord = false;
+			csvReader.Configuration.RegisterClassMap<CovarianceClassMap>();
+
+			var records = csvReader.GetRecords<CovarianceClass>().ToList();
+		}
+
+		[TestMethod]
+		public void ConvertUsingContravarianceTest()
+		{
+			var queue = new Queue<string[]>();
+			queue.Enqueue( new string[] { "1", "2" } );
+			queue.Enqueue( null );
+
+			var parserMock = new ParserMock( queue );
+
+			var csvReader = new CsvReader( parserMock );
+			csvReader.Configuration.HasHeaderRecord = false;
+
+			try
+			{
+				csvReader.Configuration.RegisterClassMap<ContravarianceClassMap>();
+				Assert.Fail();
+			}
+			catch( CsvConfigurationException )
+			{
+			}
+		}
+
+		[TestMethod]
 		public void ConvertUsingBlockTest()
 		{
 			var queue = new Queue<string[]>();
@@ -146,6 +184,32 @@ namespace CsvHelper.Tests
 			Assert.AreEqual( 1, records.Count );
 		}
 
+		private class CovarianceClass
+		{
+			public int? Id { get; set; }
+		}
+
+		private sealed class CovarianceClassMap : CsvClassMap<CovarianceClass>
+		{
+			public CovarianceClassMap()
+			{
+				Map( m => m.Id ).ConvertUsing( row => row.GetField<int>( 0 ) );
+			}
+		}
+
+		private class ContravarianceClass
+		{
+			public int Id { get; set; }
+		}
+
+		private sealed class ContravarianceClassMap : CsvClassMap<ContravarianceClass>
+		{
+			public ContravarianceClassMap()
+			{
+				Map( m => m.Id ).ConvertUsing( row => row.GetField<int?>( 0 ) );
+			}
+		}
+
 		private class TestClass
 		{
 			public int IntColumn { get; set; }
@@ -162,7 +226,7 @@ namespace CsvHelper.Tests
 
 		private sealed class SameNameMultipleTimesClassMap : CsvClassMap<SameNameMultipleTimesClass>
 		{
-			public override void CreateMap()
+			public SameNameMultipleTimesClassMap()
 			{
 				Map( m => m.Name1 ).Name( "ColumnName" ).NameIndex( 1 );
 				Map( m => m.Name2 ).Name( "ColumnName" ).NameIndex( 2 );
@@ -179,7 +243,7 @@ namespace CsvHelper.Tests
 
 		private sealed class MultipleNamesClassMap : CsvClassMap<MultipleNamesClass>
 		{
-			public override void CreateMap()
+			public MultipleNamesClassMap()
 			{
 				Map( m => m.IntColumn ).Name( "int1", "int2", "int3" );
 				Map( m => m.StringColumn ).Name( "string1", "string2", "string3" );
@@ -200,7 +264,7 @@ namespace CsvHelper.Tests
 
 		private sealed class ConstructorMappingClassMap : CsvClassMap<ConstructorMappingClass>
 		{
-			public override void CreateMap()
+			public ConstructorMappingClassMap()
 			{
 				ConstructUsing( () => new ConstructorMappingClass( "one" ) );
 				Map( m => m.IntColumn ).Index( 0 );
@@ -209,7 +273,7 @@ namespace CsvHelper.Tests
 
 		private sealed class ConvertUsingMap : CsvClassMap<TestClass>
 		{
-			public override void CreateMap()
+			public ConvertUsingMap()
 			{
 				Map( m => m.IntColumn ).ConvertUsing( row => row.GetField<int>( 0 ) + row.GetField<int>( 1 ) );
 			}
@@ -217,7 +281,7 @@ namespace CsvHelper.Tests
 
 		private sealed class ConvertUsingBlockMap : CsvClassMap<TestClass>
 		{
-			public override void CreateMap()
+			public ConvertUsingBlockMap()
 			{
 				Map( m => m.IntColumn ).ConvertUsing( row =>
 				{
@@ -230,7 +294,7 @@ namespace CsvHelper.Tests
 
 		private sealed class ConvertUsingConstantMap : CsvClassMap<TestClass>
 		{
-			public override void CreateMap()
+			public ConvertUsingConstantMap()
 			{
 				Map( m => m.IntColumn ).ConvertUsing( row => 1 );
 			}

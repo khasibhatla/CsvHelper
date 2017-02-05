@@ -1,10 +1,9 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using CsvHelper.Configuration;
 using CsvHelper.TypeConversion;
 
@@ -17,9 +16,19 @@ namespace CsvHelper
 	public interface ICsvReaderRow
 	{
 		/// <summary>
+		/// Gets or sets the configuration.
+		/// </summary>
+		ICsvReaderConfiguration Configuration { get; }
+
+		/// <summary>
+		/// Gets the field headers.
+		/// </summary>
+		string[] FieldHeaders { get; }
+
+		/// <summary>
 		/// Get the current record;
 		/// </summary>
-        string[] CurrentRecord { get; }
+		string[] CurrentRecord { get; }
 
         /// <summary>
         /// Gets the current row.
@@ -71,6 +80,65 @@ namespace CsvHelper
 		/// <param name="index">The zero based index of the instance of the field.</param>
 		/// <returns>The raw field.</returns>
 		string GetField( string name, int index );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="Object"/> using
+		/// the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The type of the field.</param>
+		/// <param name="index">The index of the field.</param>
+		/// <returns>The field converted to <see cref="Object"/>.</returns>
+		object GetField( Type type, int index );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="Object"/> using
+		/// the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The type of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <returns>The field converted to <see cref="Object"/>.</returns>
+		object GetField( Type type, string name );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="Object"/> using
+		/// the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The type of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="index">The zero based index of the instance of the field.</param>
+		/// <returns>The field converted to <see cref="Object"/>.</returns>
+		object GetField( Type type, string name, int index );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="Object"/> using
+		/// the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The type of the field.</param>
+		/// <param name="index">The index of the field.</param>
+		/// <param name="converter">The <see cref="ITypeConverter"/> used to convert the field to <see cref="Object"/>.</param>
+		/// <returns>The field converted to <see cref="Object"/>.</returns>
+		object GetField( Type type, int index, ITypeConverter converter );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="Object"/> using
+		/// the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The type of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="converter">The <see cref="ITypeConverter"/> used to convert the field to <see cref="Object"/>.</param>
+		/// <returns>The field converted to <see cref="Object"/>.</returns>
+		object GetField( Type type, string name, ITypeConverter converter );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="Object"/> using
+		/// the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The type of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="index">The zero based index of the instance of the field.</param>
+		/// <param name="converter">The <see cref="ITypeConverter"/> used to convert the field to <see cref="Object"/>.</param>
+		/// <returns>The field converted to <see cref="Object"/>.</returns>
+		object GetField( Type type, string name, int index, ITypeConverter converter );
 
 		/// <summary>
 		/// Gets the field converted to <see cref="Type"/> T at position (column) index.
@@ -162,6 +230,70 @@ namespace CsvHelper
 		/// <param name="index">The zero based index of the instance of the field.</param>
 		/// <returns>The field converted to <see cref="Type"/> T.</returns>
 		T GetField<T, TConverter>( string name, int index ) where TConverter : ITypeConverter;
+
+		/// <summary>
+		/// Gets the field converted to <see cref="System.Type"/> T at position (column) index.
+		/// </summary>
+		/// <param name="type">The <see cref="System.Type"/> of the field.</param>
+		/// <param name="index">The zero based index of the field.</param>
+		/// <param name="field">The field converted to type T.</param>
+		/// <returns>A value indicating if the get was successful.</returns>
+		bool TryGetField( Type type, int index, out object field );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="System.Type"/> T at position (column) name.
+		/// </summary>
+		/// <param name="type">The <see cref="System.Type"/> of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="field">The field converted to <see cref="System.Type"/> T.</param>
+		/// <returns>A value indicating if the get was successful.</returns>
+		bool TryGetField( Type type, string name, out object field );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="System.Type"/> T at position 
+		/// (column) name and the index instance of that field. The index 
+		/// is used when there are multiple columns with the same header name.
+		/// </summary>
+		/// <param name="type">The <see cref="System.Type"/> of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="index">The zero based index of the instance of the field.</param>
+		/// <param name="field">The field converted to <see cref="System.Type"/> T.</param>
+		/// <returns>A value indicating if the get was successful.</returns>
+		bool TryGetField( Type type, string name, int index, out object field );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="System.Type"/> T at position (column) index
+		/// using the specified <see cref="ITypeConverter" />.
+		/// </summary>
+		/// <param name="type">The <see cref="System.Type"/> of the field.</param>
+		/// <param name="index">The zero based index of the field.</param>
+		/// <param name="converter">The <see cref="ITypeConverter"/> used to convert the field to <see cref="System.Type"/> T.</param>
+		/// <param name="field">The field converted to <see cref="System.Type"/> T.</param>
+		/// <returns>A value indicating if the get was successful.</returns>
+		bool TryGetField( Type type, int index, ITypeConverter converter, out object field );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="System.Type"/> T at position (column) name
+		/// using the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The <see cref="System.Type"/> of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="converter">The <see cref="ITypeConverter"/> used to convert the field to <see cref="System.Type"/> T.</param>
+		/// <param name="field">The field converted to <see cref="System.Type"/> T.</param>
+		/// <returns>A value indicating if the get was successful.</returns>
+		bool TryGetField( Type type, string name, ITypeConverter converter, out object field );
+
+		/// <summary>
+		/// Gets the field converted to <see cref="System.Type"/> T at position (column) name
+		/// using the specified <see cref="ITypeConverter"/>.
+		/// </summary>
+		/// <param name="type">The <see cref="System.Type"/> of the field.</param>
+		/// <param name="name">The named index of the field.</param>
+		/// <param name="index">The zero based index of the instance of the field.</param>
+		/// <param name="converter">The <see cref="ITypeConverter"/> used to convert the field to <see cref="System.Type"/> T.</param>
+		/// <param name="field">The field converted to <see cref="System.Type"/> T.</param>
+		/// <returns>A value indicating if the get was successful.</returns>
+		bool TryGetField( Type type, string name, int index, ITypeConverter converter, out object field );
 
 		/// <summary>
 		/// Gets the field converted to <see cref="Type"/> T at position (column) index.
@@ -271,6 +403,7 @@ namespace CsvHelper
 		bool IsRecordEmpty();
 
 #if !NET_2_0
+
 		/// <summary>
 		/// Gets the record converted into <see cref="Type"/> T.
 		/// </summary>
@@ -285,51 +418,6 @@ namespace CsvHelper
 		/// <returns>The record.</returns>
 		object GetRecord( Type type );
 
-		/// <summary>
-		/// Gets all the records in the CSV file and
-		/// converts each to <see cref="Type"/> T. The Read method
-		/// should not be used when using this.
-		/// </summary>
-		/// <typeparam name="T">The <see cref="Type"/> of the record.</typeparam>
-		/// <returns>An <see cref="IList{T}" /> of records.</returns>
-		IEnumerable<T> GetRecords<T>() ;
-
-		/// <summary>
-		/// Gets all the records in the CSV file and
-		/// converts each to <see cref="Type"/> T. The Read method
-		/// should not be used when using this.
-		/// </summary>
-		/// <param name="type">The <see cref="Type"/> of the record.</param>
-		/// <returns>An <see cref="IList{Object}" /> of records.</returns>
-		IEnumerable<object> GetRecords( Type type );
-
-		/// <summary>
-		/// Clears the record cache for the given type. After <see cref="GetRecord{T}"/> is called the
-		/// first time, code is dynamically generated based on the <see cref="CsvPropertyMapCollection"/>,
-		/// compiled, and stored for the given type T. If the <see cref="CsvPropertyMapCollection"/>
-		/// changes, <see cref="ClearRecordCache{T}"/> needs to be called to update the
-		/// record cache.
-		/// </summary>
-		void ClearRecordCache<T>() ;
-
-		/// <summary>
-		/// Clears the record cache for the given type. After <see cref="ICsvReaderRow.GetRecord{T}"/> is called the
-		/// first time, code is dynamically generated based on the <see cref="CsvPropertyMapCollection"/>,
-		/// compiled, and stored for the given type T. If the <see cref="CsvPropertyMapCollection"/>
-		/// changes, <see cref="ClearRecordCache( Type )"/> needs to be called to update the
-		/// record cache.
-		/// </summary>
-		/// <param name="type">The type to invalidate.</param>
-		void ClearRecordCache( Type type );
-
-		/// <summary>
-		/// Clears the record cache for all types. After <see cref="ICsvReaderRow.GetRecord{T}"/> is called the
-		/// first time, code is dynamically generated based on the <see cref="CsvPropertyMapCollection"/>,
-		/// compiled, and stored for the given type T. If the <see cref="CsvPropertyMapCollection"/>
-		/// changes, <see cref="ClearRecordCache()"/> needs to be called to update the
-		/// record cache.
-		/// </summary>
-		void ClearRecordCache();
 #endif
 	}
 }

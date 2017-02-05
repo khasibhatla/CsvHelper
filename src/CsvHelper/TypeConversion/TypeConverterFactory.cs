@@ -1,14 +1,12 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Reflection;
-#if WINRT_4_5
-using CsvHelper.MissingFromRt45;
-#endif
 
 namespace CsvHelper.TypeConversion
 {
@@ -29,7 +27,7 @@ namespace CsvHelper.TypeConversion
 		}
 
 		/// <summary>
-		/// Adds the <see cref="ITypeConverter"/> for the given <see cref="Type"/>.
+		/// Adds the <see cref="ITypeConverter"/> for the given <see cref="System.Type"/>.
 		/// </summary>
 		/// <param name="type">The type the converter converts.</param>
 		/// <param name="typeConverter">The type converter that converts the type.</param>
@@ -37,12 +35,12 @@ namespace CsvHelper.TypeConversion
 		{
 			if( type == null )
 			{
-				throw new ArgumentNullException( "type" );
+				throw new ArgumentNullException( nameof( type ) );
 			}
 
 			if( typeConverter == null )
 			{
-				throw new ArgumentNullException( "typeConverter" );
+				throw new ArgumentNullException( nameof( typeConverter ) );
 			}
 
 			lock( locker )
@@ -52,7 +50,7 @@ namespace CsvHelper.TypeConversion
 		}
 
 		/// <summary>
-		/// Adds the <see cref="ITypeConverter"/> for the given <see cref="Type"/>.
+		/// Adds the <see cref="ITypeConverter"/> for the given <see cref="System.Type"/>.
 		/// </summary>
 		/// <typeparam name="T">The type the converter converts.</typeparam>
 		/// <param name="typeConverter">The type converter that converts the type.</param>
@@ -60,7 +58,7 @@ namespace CsvHelper.TypeConversion
 		{
 			if( typeConverter == null )
 			{
-				throw new ArgumentNullException( "typeConverter" );
+				throw new ArgumentNullException( nameof( typeConverter ) );
 			}
 
 			lock( locker )
@@ -70,14 +68,14 @@ namespace CsvHelper.TypeConversion
 		}
 
 		/// <summary>
-		/// Removes the <see cref="ITypeConverter"/> for the given <see cref="Type"/>.
+		/// Removes the <see cref="ITypeConverter"/> for the given <see cref="System.Type"/>.
 		/// </summary>
 		/// <param name="type">The type to remove the converter for.</param>
 		public static void RemoveConverter( Type type )
 		{
 			if( type == null )
 			{
-				throw new ArgumentNullException( "type" );
+				throw new ArgumentNullException( nameof( type ) );
 			}
 
 			lock( locker )
@@ -87,7 +85,7 @@ namespace CsvHelper.TypeConversion
 		}
 
 		/// <summary>
-		/// Removes the <see cref="ITypeConverter"/> for the given <see cref="Type"/>.
+		/// Removes the <see cref="ITypeConverter"/> for the given <see cref="System.Type"/>.
 		/// </summary>
 		/// <typeparam name="T">The type to remove the converter for.</typeparam>
 		public static void RemoveConverter<T>()
@@ -96,15 +94,15 @@ namespace CsvHelper.TypeConversion
 		}
 
 		/// <summary>
-		/// Gets the converter for the given <see cref="Type"/>.
+		/// Gets the converter for the given <see cref="System.Type"/>.
 		/// </summary>
 		/// <param name="type">The type to get the converter for.</param>
-		/// <returns>The <see cref="ITypeConverter"/> for the given <see cref="Type"/>.</returns>
+		/// <returns>The <see cref="ITypeConverter"/> for the given <see cref="System.Type"/>.</returns>
 		public static ITypeConverter GetConverter( Type type )
 		{
 			if( type == null )
 			{
-				throw new ArgumentNullException( "type" );
+				throw new ArgumentNullException( nameof( type ) );
 			}
 
 			lock( locker )
@@ -116,36 +114,80 @@ namespace CsvHelper.TypeConversion
 				}
 			}
 
-			if( typeof( IEnumerable ).IsAssignableFrom( type ) )
-			{
-				return GetConverter( typeof( IEnumerable ) );
-			}
-
 			if( typeof( Enum ).IsAssignableFrom( type ) )
 			{
 				AddConverter( type, new EnumConverter( type ) );
 				return GetConverter( type );
 			}
 
-#if WINRT_4_5
-			var isGenericType = type.GetTypeInfo().IsGenericType;
-#else
-			var isGenericType = type.IsGenericType;
-#endif
-			if( isGenericType && type.GetGenericTypeDefinition() == typeof( Nullable<> ) )
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( Nullable<> ) )
 			{
 				AddConverter( type, new NullableConverter( type ) );
 				return GetConverter( type );
+			}
+
+			if( type.IsArray )
+			{
+				AddConverter( type, new ArrayConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( Dictionary<,> ) )
+			{
+				AddConverter( type, new IDictionaryGenericConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( IDictionary<,> ) )
+			{
+				AddConverter( type, new IDictionaryGenericConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( List<> ) )
+			{
+				AddConverter( type, new CollectionGenericConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( Collection<> ) )
+			{
+				AddConverter( type, new CollectionGenericConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( IList<> ) )
+			{
+				AddConverter( type, new IEnumerableGenericConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( ICollection<> ) )
+			{
+				AddConverter( type, new IEnumerableGenericConverter() );
+				return GetConverter( type );
+			}
+
+			if( type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof( IEnumerable<> ) )
+			{
+				AddConverter( type, new IEnumerableGenericConverter() );
+				return GetConverter( type );
+			}
+
+			// A specific IEnumerable converter doesn't exist.
+			if( typeof( IEnumerable ).IsAssignableFrom( type ) )
+			{
+				return new EnumerableConverter();
 			}
 
 			return new DefaultTypeConverter();
 		}
 
 		/// <summary>
-		/// Gets the converter for the given <see cref="Type"/>.
+		/// Gets the converter for the given <see cref="System.Type"/>.
 		/// </summary>
 		/// <typeparam name="T">The type to get the converter for.</typeparam>
-		/// <returns>The <see cref="ITypeConverter"/> for the given <see cref="Type"/>.</returns>
+		/// <returns>The <see cref="ITypeConverter"/> for the given <see cref="System.Type"/>.</returns>
 		public static ITypeConverter GetConverter<T>()
 		{
 			return GetConverter( typeof( T ) );
@@ -157,6 +199,7 @@ namespace CsvHelper.TypeConversion
 			AddConverter( typeof( byte ), new ByteConverter() );
 			AddConverter( typeof( char ), new CharConverter() );
 			AddConverter( typeof( DateTime ), new DateTimeConverter() );
+			AddConverter( typeof( DateTimeOffset ), new DateTimeOffsetConverter() );
 			AddConverter( typeof( decimal ), new DecimalConverter() );
 			AddConverter( typeof( double ), new DoubleConverter() );
 			AddConverter( typeof( float ), new SingleConverter() );
@@ -166,10 +209,17 @@ namespace CsvHelper.TypeConversion
 			AddConverter( typeof( long ), new Int64Converter() );
 			AddConverter( typeof( sbyte ), new SByteConverter() );
 			AddConverter( typeof( string ), new StringConverter() );
+			AddConverter( typeof( TimeSpan ), new TimeSpanConverter() );
 			AddConverter( typeof( ushort ), new UInt16Converter() );
 			AddConverter( typeof( uint ), new UInt32Converter() );
 			AddConverter( typeof( ulong ), new UInt64Converter() );
-			AddConverter( typeof( IEnumerable ), new EnumerableConverter() );
+			AddConverter( typeof( IList ), new IEnumerableConverter() );
+			AddConverter( typeof( ICollection ), new IEnumerableConverter() );
+			AddConverter( typeof( IEnumerable ), new IEnumerableConverter() );
+			AddConverter( typeof( IDictionary ), new IDictionaryConverter() );
+#if !PCL && !NETSTANDARD
+            AddConverter( typeof( ArrayList ), new ArrayListConverter() );
+#endif
 		} 
 	}
 }

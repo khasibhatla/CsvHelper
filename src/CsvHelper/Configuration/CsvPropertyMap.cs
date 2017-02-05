@@ -1,8 +1,11 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
+#if !NET_2_0
+
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -14,32 +17,32 @@ using CsvHelper.TypeConversion;
 namespace CsvHelper.Configuration
 {
 	/// <summary>
-	/// Mapping info for a property to a CSV field.
+	/// Mapping info for a property/field to a CSV field.
 	/// </summary>
-	[DebuggerDisplay( "Name = {NameValue}, Index = {IndexValue}, Ignore = {IgnoreValue}, Property = {PropertyValue}, TypeConverter = {TypeConverterValue}" )]
+	[DebuggerDisplay( "Names = {string.Join(\",\", Data.Names)}, Index = {Data.Index}, Ignore = {Data.Ignore}, Property = {Data.Property}, TypeConverter = {Data.TypeConverter}" )]
 	public class CsvPropertyMap
 	{
-		private readonly CsvPropertyMapData data;
+		/// <summary>
+		/// Gets the property/field map data.
+		/// </summary>
+		public CsvPropertyMapData Data { get; }
 
 		/// <summary>
-		/// Property map data.
+		/// Creates a new <see cref="CsvPropertyMap"/> instance using the specified property/field.
 		/// </summary>
-		public CsvPropertyMapData Data
+		public CsvPropertyMap( MemberInfo member )
 		{
-			get { return data; }
-		}
+			TypeConverterOption = new MapTypeConverterOption( this );
 
-		/// <summary>
-		/// Creates a new <see cref="CsvPropertyMap"/> instance using the specified property.
-		/// </summary>
-		public CsvPropertyMap( PropertyInfo property )
-		{
-			data = new CsvPropertyMapData( property )
+			Data = new CsvPropertyMapData( member );
+			if( member == null )
 			{
-				// Set some defaults.
-				TypeConverter = TypeConverterFactory.GetConverter( property.PropertyType )
-			};
-			data.Names.Add( property.Name );
+				return;
+			}
+
+			// Set some defaults.
+			Data.TypeConverter = TypeConverterFactory.GetConverter( member.MemberType() );
+			Data.Names.Add( member.Name );
 		}
 
 		/// <summary>
@@ -56,12 +59,13 @@ namespace CsvHelper.Configuration
 		{
 			if( names == null || names.Length == 0 )
 			{
-				throw new ArgumentNullException( "names" );
+				throw new ArgumentNullException( nameof( names ) );
 			}
 
-			data.Names.Clear();
-			data.Names.AddRange( names );
-			data.IsNameSet = true;
+			Data.Names.Clear();
+			Data.Names.AddRange( names );
+			Data.IsNameSet = true;
+
 			return this;
 		}
 
@@ -73,7 +77,8 @@ namespace CsvHelper.Configuration
 		/// <param name="index">The index of the name.</param>
 		public virtual CsvPropertyMap NameIndex( int index )
 		{
-			data.NameIndex = index;
+			Data.NameIndex = index;
+
 			return this;
 		}
 
@@ -84,29 +89,34 @@ namespace CsvHelper.Configuration
 		/// indexes.
 		/// </summary>
 		/// <param name="index">The index of the CSV field.</param>
-		public virtual CsvPropertyMap Index( int index )
+		/// <param name="indexEnd">The end index used when mapping to an <see cref="IEnumerable"/> property/field.</param>
+		public virtual CsvPropertyMap Index( int index, int indexEnd = -1 )
 		{
-			data.Index = index;
-			data.IsIndexSet = true;
+			Data.Index = index;
+			Data.IsIndexSet = true;
+			Data.IndexEnd = indexEnd;
+
 			return this;
 		}
 
 		/// <summary>
-		/// Ignore the property when reading and writing.
+		/// Ignore the property/field when reading and writing.
 		/// </summary>
 		public virtual CsvPropertyMap Ignore()
 		{
-			data.Ignore = true;
+			Data.Ignore = true;
+
 			return this;
 		}
 
 		/// <summary>
-		/// Ignore the property when reading and writing.
+		/// Ignore the property/field when reading and writing.
 		/// </summary>
 		/// <param name="ignore">True to ignore, otherwise false.</param>
 		public virtual CsvPropertyMap Ignore( bool ignore )
 		{
-			data.Ignore = ignore;
+			Data.Ignore = ignore;
+
 			return this;
 		}
 
@@ -114,127 +124,95 @@ namespace CsvHelper.Configuration
 		/// The default value that will be used when reading when
 		/// the CSV field is empty.
 		/// </summary>
+		/// <typeparam name="T">The default type.</typeparam>
 		/// <param name="defaultValue">The default value.</param>
-		public virtual CsvPropertyMap Default( object defaultValue )
+		public virtual CsvPropertyMap Default<T>( T defaultValue )
 		{
-			data.Default = defaultValue;
+			var returnType = typeof( T );
+			if( !Data.Member.MemberType().IsAssignableFrom( returnType ) )
+			{
+				throw new CsvConfigurationException( $"Default type '{returnType.FullName}' cannot be assigned to property/field type '{Data.Member.MemberType().FullName}'." );
+			}
+
+			Data.Default = defaultValue;
+			Data.IsDefaultSet = true;
+
+			return this;
+		}
+
+		/// <summary>
+		/// The constant value that will be used for every record when 
+		/// reading and writing. This value will always be used no matter 
+		/// what other mapping configurations are specified.
+		/// </summary>
+		/// <typeparam name="T">The constant type.</typeparam>
+		/// <param name="constantValue">The constant value.</param>
+		public virtual CsvPropertyMap Constant<T>( T constantValue )
+		{
+			if( Data.Member != null )
+			{
+				var returnType = typeof( T );
+				if( !Data.Member.MemberType().IsAssignableFrom( returnType ) )
+				{
+					throw new CsvConfigurationException( $"Constant type '{returnType.FullName}' cannot be assigned to property/field type '{Data.Member.MemberType().FullName}'." );
+				}
+			}
+
+			Data.Constant = constantValue;
+			Data.IsConstantSet = true;
+
 			return this;
 		}
 
 		/// <summary>
 		/// Specifies the <see cref="TypeConverter"/> to use
-		/// when converting the property to and from a CSV field.
+		/// when converting the property/field to and from a CSV field.
 		/// </summary>
 		/// <param name="typeConverter">The TypeConverter to use.</param>
 		public virtual CsvPropertyMap TypeConverter( ITypeConverter typeConverter )
 		{
-			data.TypeConverter = typeConverter;
+			Data.TypeConverter = typeConverter;
+
 			return this;
 		}
 
 		/// <summary>
 		/// Specifies the <see cref="TypeConverter"/> to use
-		/// when converting the property to and from a CSV field.
+		/// when converting the property/field to and from a CSV field.
 		/// </summary>
-		/// <typeparam name="T">The <see cref="Type"/> of the 
+		/// <typeparam name="T">The <see cref="System.Type"/> of the 
 		/// <see cref="TypeConverter"/> to use.</typeparam>
 		public virtual CsvPropertyMap TypeConverter<T>() where T : ITypeConverter
 		{
 			TypeConverter( ReflectionHelper.CreateInstance<T>() );
+
 			return this;
 		}
 
 		/// <summary>
 		/// Specifies an expression to be used to convert data in the
-		/// row to the property.
+		/// row to the property/field.
 		/// </summary>
-		/// <typeparam name="T">The type of the property that will be set.</typeparam>
+		/// <typeparam name="T">The type of the property/field that will be set.</typeparam>
 		/// <param name="convertExpression">The convert expression.</param>
 		public virtual CsvPropertyMap ConvertUsing<T>( Func<ICsvReaderRow, T> convertExpression )
 		{
-			data.ConvertExpression = (Expression<Func<ICsvReaderRow, T>>)( x => convertExpression( x ) );
-			return this;
-		}
-
-		/// <summary>
-		/// The <see cref="CultureInfo"/> used when type converting.
-		/// This will override the global <see cref="CsvConfiguration.CultureInfo"/>
-		/// setting.
-		/// </summary>
-		/// <param name="cultureInfo">The culture info.</param>
-		public virtual CsvPropertyMap TypeConverterOption( CultureInfo cultureInfo )
-		{
-			data.TypeConverterOptions.CultureInfo = cultureInfo;
-			return this;
-		}
-
-		/// <summary>
-		/// The <see cref="DateTimeStyles"/> to use when type converting.
-		/// This is used when doing any <see cref="DateTime"/> conversions.
-		/// </summary>
-		/// <param name="dateTimeStyle">The date time style.</param>
-		public virtual CsvPropertyMap TypeConverterOption( DateTimeStyles dateTimeStyle )
-		{
-			data.TypeConverterOptions.DateTimeStyle = dateTimeStyle;
-			return this;
-		}
-
-		/// <summary>
-		/// The <see cref="NumberStyles"/> to use when type converting.
-		/// This is used when doing any number conversions.
-		/// </summary>
-		/// <param name="numberStyle"></param>
-		public virtual CsvPropertyMap TypeConverterOption( NumberStyles numberStyle )
-		{
-			data.TypeConverterOptions.NumberStyle = numberStyle;
-			return this;
-		}
-
-		/// <summary>
-		/// The string format to be used when type converting.
-		/// </summary>
-		/// <param name="format">The format.</param>
-		public virtual CsvPropertyMap TypeConverterOption( string format )
-		{
-			data.TypeConverterOptions.Format = format;
-			return this;
-		}
-
-		/// <summary>
-		/// The string values used to represent a boolean when converting.
-		/// </summary>
-		/// <param name="isTrue">A value indicating whether true values or false values are being set.</param>
-		/// <param name="booleanValues">The string boolean values.</param>
-		public virtual CsvPropertyMap TypeConverterOption( bool isTrue, params string[] booleanValues )
-		{
-			return TypeConverterOption( isTrue, true, booleanValues );
-		}
-
-		/// <summary>
-		/// The string values used to represent a boolean when converting.
-		/// </summary>
-		/// <param name="isTrue">A value indicating whether true values or false values are being set.</param>
-		/// <param name="clearValues">A value indication if the current values should be cleared before adding the new ones.</param>
-		/// <param name="booleanValues">The string boolean values.</param>
-		public virtual CsvPropertyMap TypeConverterOption( bool isTrue, bool clearValues, params string[] booleanValues )
-		{
-			if( isTrue )
+			var returnType = typeof( T );
+			if( !Data.Member.MemberType().IsAssignableFrom( returnType ) )
 			{
-				if( clearValues )
-				{
-					data.TypeConverterOptions.BooleanTrueValues.Clear();
-				}
-				data.TypeConverterOptions.BooleanTrueValues.AddRange( booleanValues );
+				throw new CsvConfigurationException( $"ConvertUsing return type '{returnType.FullName}' cannot be assigned to property/field type '{Data.Member.MemberType().FullName}'." );
 			}
-			else
-			{
-				if( clearValues )
-				{
-					data.TypeConverterOptions.BooleanFalseValues.Clear();
-				}
-				data.TypeConverterOptions.BooleanFalseValues.AddRange( booleanValues );
-			}
+
+			Data.ConvertExpression = (Expression<Func<ICsvReaderRow, T>>)( x => convertExpression( x ) );
+
 			return this;
 		}
+
+		/// <summary>
+		/// Type converter options.
+		/// </summary>
+		public virtual MapTypeConverterOption TypeConverterOption { get; }
 	}
 }
+
+#endif // !NET_2_0

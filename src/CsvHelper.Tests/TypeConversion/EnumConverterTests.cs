@@ -1,11 +1,12 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using CsvHelper.Configuration;
 #if WINRT_4_5
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 #else
@@ -36,33 +37,33 @@ namespace CsvHelper.Tests.TypeConversion
 		public void ConvertToStringTest()
 		{
 			var converter = new EnumConverter( typeof( TestEnum ) );
-			var typeConverterOptions = new TypeConverterOptions
+			var propertyMapData = new CsvPropertyMapData( null )
 			{
-				CultureInfo = CultureInfo.CurrentCulture
+				TypeConverter = converter,
+				TypeConverterOptions = { CultureInfo = CultureInfo.CurrentCulture }
 			};
 
-			Assert.AreEqual( "None", converter.ConvertToString( typeConverterOptions, (TestEnum)0 ) );
-			Assert.AreEqual( "None", converter.ConvertToString( typeConverterOptions, TestEnum.None ) );
-			Assert.AreEqual( "One", converter.ConvertToString( typeConverterOptions, (TestEnum)1 ) );
-			Assert.AreEqual( "One", converter.ConvertToString( typeConverterOptions, TestEnum.One ) );
-			Assert.AreEqual( "", converter.ConvertToString( typeConverterOptions, null ) );
+			Assert.AreEqual( "None", converter.ConvertToString( (TestEnum)0, null, propertyMapData ) );
+			Assert.AreEqual( "None", converter.ConvertToString( TestEnum.None, null, propertyMapData ) );
+			Assert.AreEqual( "One", converter.ConvertToString( (TestEnum)1, null, propertyMapData ) );
+			Assert.AreEqual( "One", converter.ConvertToString( TestEnum.One, null, propertyMapData ) );
+			Assert.AreEqual( "", converter.ConvertToString( null, null, propertyMapData ) );
 		}
 
 		[TestMethod]
 		public void ConvertFromStringTest()
 		{
 			var converter = new EnumConverter( typeof( TestEnum ) );
-			var typeConverterOptions = new TypeConverterOptions
-			{
-				CultureInfo = CultureInfo.CurrentCulture
-			};
 
-			Assert.AreEqual( TestEnum.One, converter.ConvertFromString( typeConverterOptions, "One" ) );
-			Assert.AreEqual( TestEnum.One, converter.ConvertFromString( typeConverterOptions, "one" ) );
-			Assert.AreEqual( TestEnum.One, converter.ConvertFromString( typeConverterOptions, "1" ) );
+			var propertyMapData = new CsvPropertyMapData( null );
+			propertyMapData.TypeConverterOptions.CultureInfo = CultureInfo.CurrentCulture;
+
+			Assert.AreEqual( TestEnum.One, converter.ConvertFromString( "One", null, propertyMapData ) );
+			Assert.AreEqual( TestEnum.One, converter.ConvertFromString( "one", null, propertyMapData ) );
+			Assert.AreEqual( TestEnum.One, converter.ConvertFromString( "1", null, propertyMapData ) );
 			try
 			{
-				Assert.AreEqual( TestEnum.One, converter.ConvertFromString( typeConverterOptions, "" ) );
+				Assert.AreEqual( TestEnum.One, converter.ConvertFromString( "", null, propertyMapData ) );
 				Assert.Fail();
 			}
 			catch( CsvTypeConverterException )
@@ -71,7 +72,7 @@ namespace CsvHelper.Tests.TypeConversion
 
 			try
 			{
-				Assert.AreEqual( TestEnum.One, converter.ConvertFromString( typeConverterOptions, null ) );
+				Assert.AreEqual( TestEnum.One, converter.ConvertFromString( null, null, propertyMapData ) );
 				Assert.Fail();
 			}
 			catch( CsvTypeConverterException )

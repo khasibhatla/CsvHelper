@@ -1,11 +1,14 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
+using System;
 using System.IO;
+using CsvHelper.Configuration;
 #if WINRT_4_5
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 #else
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 #endif
 
@@ -28,7 +31,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = "\t";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -63,7 +65,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = "``";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -98,7 +99,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = "`\t`";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -133,7 +133,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = ";;";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -168,7 +167,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = ";;";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -203,7 +201,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = ";;";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -238,7 +235,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = ";;";
-				parser.Configuration.HasHeaderRecord = false;
 
 				var row = parser.Read();
 				Assert.IsNotNull( row );
@@ -273,7 +269,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = ";;";
-				parser.Configuration.HasHeaderRecord = false;
 				parser.Configuration.CountBytes = true;
 
 				parser.Read();
@@ -300,7 +295,6 @@ namespace CsvHelper.Tests
 				stream.Position = 0;
 
 				parser.Configuration.Delimiter = ";;;";
-				parser.Configuration.HasHeaderRecord = false;
 				parser.Configuration.CountBytes = true;
 
 				parser.Read();
@@ -310,6 +304,34 @@ namespace CsvHelper.Tests
 				Assert.AreEqual( 14, parser.BytePosition );
 
 				Assert.IsNull( parser.Read() );
+			}
+		}
+
+		[TestMethod]
+		public void MultipleCharDelimiterWithBufferEndingInMiddleOfDelimiterTest()
+		{
+			var config = new CsvConfiguration
+			{
+				Delimiter = "|~|",
+				BufferSize = 3,
+			};
+
+			using( var stream = new MemoryStream() )
+			using( var reader = new StreamReader( stream ) )
+			using( var writer = new StreamWriter( stream ) )
+			using( var parser = new CsvParser( reader, config ) )
+			{
+				writer.WriteLine( "1|~|2" );
+				writer.Flush();
+				stream.Position = 0;
+
+				var row = parser.Read();
+				Assert.IsNotNull( row );
+				Assert.AreEqual( 2, row.Length );
+				Assert.AreEqual( "1", row[0] );
+				Assert.AreEqual( "2", row[1] );
+				row = parser.Read();
+				Assert.IsNull( row );
 			}
 		}
 	}

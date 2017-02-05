@@ -1,6 +1,6 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System.Collections.Generic;
 using CsvHelper.Configuration;
@@ -67,6 +67,46 @@ namespace CsvHelper.Tests
 			Assert.AreEqual( row[9], person.WorkAddress.Zip );
 		}
 
+		[TestMethod]
+		public void OnlyReferencesTest()
+		{
+			var queue = new Queue<string[]>();
+			queue.Enqueue( new[]
+			{
+				"FirstName",
+				"LastName",
+				"HomeStreet",
+				"HomeCity",
+				"HomeState",
+				"HomeZip",
+				"WorkStreet",
+				"WorkCity",
+				"WorkState",
+				"WorkZip"
+			} );
+			queue.Enqueue( new[]
+			{
+				"John",
+				"Doe",
+				"1234 Home St",
+				"Home Town",
+				"Home State",
+				"12345",
+				"5678 Work Rd",
+				"Work City",
+				"Work State",
+				"67890"
+			} );
+			queue.Enqueue( null );
+
+			var parserMock = new ParserMock( queue );
+
+			var reader = new CsvReader( parserMock );
+			reader.Configuration.RegisterClassMap<OnlyReferencesMap>();
+			reader.Read();
+			var person = reader.GetRecord<Person>();
+		}
+
 		private class Person
 		{
 			public string FirstName { get; set; }
@@ -91,7 +131,7 @@ namespace CsvHelper.Tests
 
 		private sealed class PersonMap : CsvClassMap<Person>
 		{
-			public override void CreateMap()
+			public PersonMap()
 			{
 				Map( m => m.FirstName );
 				Map( m => m.LastName );
@@ -102,7 +142,7 @@ namespace CsvHelper.Tests
 
 		private sealed class HomeAddressMap : CsvClassMap<Address>
 		{
-			public override void CreateMap()
+			public HomeAddressMap()
 			{
 				Map( m => m.Street ).Name( "HomeStreet" );
 				Map( m => m.City ).Name( "HomeCity" );
@@ -113,12 +153,21 @@ namespace CsvHelper.Tests
 
 		private sealed class WorkAddressMap : CsvClassMap<Address>
 		{
-			public override void CreateMap()
+			public WorkAddressMap()
 			{
 				Map(m => m.Street).Name( "WorkStreet" );
 				Map(m => m.City).Name( "WorkCity" );
 				Map(m => m.State).Name( "WorkState" );
 				Map(m => m.Zip).Name( "WorkZip" );
+			}
+		}
+
+		private sealed class OnlyReferencesMap : CsvClassMap<Person>
+		{
+			public OnlyReferencesMap()
+			{
+				References<HomeAddressMap>( m => m.HomeAddress );
+				References<WorkAddressMap>( m => m.WorkAddress );
 			}
 		}
 	}

@@ -10,10 +10,11 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>CsvHelper.Tests</RootNamespace>
     <AssemblyName>CsvHelper.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\src\</SolutionDir>
     <RestorePackages>true</RestorePackages>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,6 +24,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,6 +33,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
@@ -39,7 +42,15 @@
     <AssemblyOriginatorKeyFile>CsvHelper.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Castle.Core, Version=3.3.0.0, Culture=neutral, PublicKeyToken=407dd0808d44fbdc, processorArchitecture=MSIL">
+      <HintPath>..\packages\Castle.Core.3.3.3\lib\net45\Castle.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="Moq, Version=4.5.21.0, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
+      <HintPath>..\packages\Moq.4.5.21\lib\net45\Moq.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -49,9 +60,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration\CsvClassMapCollectionTests.cs" />
+    <Compile Include="Culture\TypeConverterOptionsFactoryTests.cs" />
+    <Compile Include="Mappings\ConstructUsingTests.cs" />
+    <Compile Include="Mappings\FieldMappingTests.cs" />
+    <Compile Include="Mappings\IgnoreHeaderWhiteSpaceTests.cs" />
+    <Compile Include="Mappings\MapConstructorTests.cs" />
+    <Compile Include="Mappings\SubPropertyMappingTests.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AutoMappingTests.cs" />
+    <Compile Include="ClassMapOrderingTests.cs" />
+    <Compile Include="CsvClassMappingAutoMapTests.cs" />
     <Compile Include="CsvParserDelimiterTests.cs" />
-    <Compile Include="CsvParserExcelCompatibleTests.cs" />
+    <Compile Include="CsvReaderDefaultValueTests.cs" />
+    <Compile Include="CsvReaderReferenceMappingPrefixTests.cs" />
+    <Compile Include="CsvWriterReferenceMappingPrefixTests.cs" />
+    <Compile Include="Defaults\WritingDefaultsTests.cs" />
+    <Compile Include="DynamicProxyTests.cs" />
+    <Compile Include="ExcelCompatibility\LeadingZeroTests.cs" />
+    <Compile Include="ExcelCompatibility\ExcelCompatibleTests.cs" />
     <Compile Include="CsvParserRawRecordTests.cs" />
     <Compile Include="CsvReaderErrorMessageTests.cs" />
     <Compile Include="CsvReaderMappingTests.cs" />
@@ -61,7 +88,7 @@
     <Compile Include="CsvWriterMappingTests.cs" />
     <Compile Include="CsvWriterReferenceMappingTests.cs" />
     <Compile Include="CsvWriterSubClassingTests.cs" />
-    <Compile Include="CsvClassMappingTests.cs" />
+    <Compile Include="Mappings\CsvClassMappingTests.cs" />
     <Compile Include="CsvConfigurationTests.cs" />
     <Compile Include="CsvParserConstructorTests.cs" />
     <Compile Include="CsvParserTests.cs" />
@@ -69,32 +96,68 @@
     <Compile Include="CsvReaderTests.cs" />
     <Compile Include="CsvWriterConstructorTests.cs" />
     <Compile Include="CsvWriterTests.cs" />
-    <Compile Include="ExceptionTests.cs" />
+    <Compile Include="Exceptions\ExceptionMessageTests.cs" />
+    <Compile Include="Exceptions\ExceptionTests.cs" />
     <Compile Include="ClearRecordsCacheTests.cs" />
     <Compile Include="LocalCultureTests.cs" />
+    <Compile Include="MappingInheritedClassTests.cs" />
+    <Compile Include="Mappings\ReferenceConstructorArgsTests.cs" />
     <Compile Include="Mocks\ParserMock.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Mocks\SerializerMock.cs" />
+    <Compile Include="ParserBadDataTests.cs" />
+    <Compile Include="Parsing\CommentTests.cs" />
+    <Compile Include="Parsing\DelimiterTests.cs" />
+    <Compile Include="Reading\ConstantTests.cs" />
+    <Compile Include="Reading\DetectColumnCountChangesTests.cs" />
+    <Compile Include="Reading\EmptyTextReaderTests.cs" />
+    <Compile Include="Reading\MultipleGetRecordsTests.cs" />
+    <Compile Include="Reading\MultipleHeadersTests.cs" />
+    <Compile Include="Reading\ReadHeaderTests.cs" />
+    <Compile Include="Reading\ShouldSkipRecordTests.cs" />
+    <Compile Include="Reading\TryGetTests.cs" />
+    <Compile Include="RecordBuilderTests.cs" />
     <Compile Include="ReferenceMappingClassMapTests.cs" />
-    <Compile Include="ReflectionHelperTests.cs" />
+    <Compile Include="ReferenceMappingIndexTests.cs" />
+    <Compile Include="Reflection\CreateInstanceTests.cs" />
+    <Compile Include="Reflection\GetMemberExpressionStackTests.cs" />
+    <Compile Include="TypeConversion\ArrayConverterTests.cs" />
+    <Compile Include="TypeConversion\ArrayListConverterTests.cs" />
     <Compile Include="TypeConversion\BooleanConverterTests.cs" />
     <Compile Include="TypeConversion\ByteConverterTests.cs" />
     <Compile Include="TypeConversion\CharConverterTests.cs" />
+    <Compile Include="TypeConversion\DateTimeOffsetConverterTests.cs" />
     <Compile Include="TypeConversion\EnumConverterTests.cs" />
     <Compile Include="TypeConversion\DateTimeConverterTests.cs" />
     <Compile Include="TypeConversion\EnumerableConverterTests.cs" />
+    <Compile Include="TypeConversion\IDictionaryConverterTests.cs" />
+    <Compile Include="TypeConversion\IDictionaryGenericConverterTests.cs" />
+    <Compile Include="TypeConversion\IEnumerableConverterTests.cs" />
+    <Compile Include="TypeConversion\IEnumerableGenericConverterTests.cs" />
+    <Compile Include="TypeConversion\CollectionGenericConverterTests.cs" />
     <Compile Include="TypeConversion\TimeSpanConverterTests.cs" />
     <Compile Include="TypeConversion\TypeConverterFactoryTests.cs" />
+    <Compile Include="TypeConversion\TypeConverterOptionsFactoryTests.cs" />
+    <Compile Include="TypeConversion\TypeConverterOptionsTests.cs" />
     <Compile Include="TypeConversion\TypeConverterTests.cs" />
+    <Compile Include="Writing\ConstantTests.cs" />
+    <Compile Include="Writing\DynamicTests.cs" />
+    <Compile Include="MapPropertyMultipleTimesTests.cs" />
+    <Compile Include="Writing\NoPropertyMappingTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CsvHelper.snk" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CsvHelper\CsvHelper.csproj">
-      <Project>{968A4E7C-B1E9-457E-B1F9-A774E68926C6}</Project>
-      <Name>CsvHelper</Name>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CsvHelperNCrunch\CsvHelperNCrunch.csproj">
+      <Project>{d65bcb4c-18cf-4aac-8790-cb0bb2ee0088}</Project>
+      <Name>CsvHelperNCrunch</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

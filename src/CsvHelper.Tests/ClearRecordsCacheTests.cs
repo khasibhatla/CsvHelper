@@ -1,6 +1,6 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System;
 using System.Collections.Generic;
@@ -65,11 +65,13 @@ namespace CsvHelper.Tests
 				csv.Configuration.RegisterClassMap<TestMap1>();
 				var record = new Test { Id = 1, Name = "one" };
 				csv.WriteRecord( record );
+			    csv.NextRecord();
 
 				csv.ClearRecordCache<Test>();
 				csv.Configuration.RegisterClassMap<TestMap2>();
 				record = new Test { Id = 2, Name = "two" };
 				csv.WriteRecord( record );
+			    csv.NextRecord();
 
 				writer.Flush();
 				stream.Position = 0;
@@ -93,7 +95,7 @@ namespace CsvHelper.Tests
 
 		private sealed class TestMap1 : CsvClassMap<Test>
 		{
-			public override void CreateMap()
+			public TestMap1()
 			{
 				Map( m => m.Id );
 			}
@@ -101,7 +103,7 @@ namespace CsvHelper.Tests
 
 		private sealed class TestMap2 : CsvClassMap<Test>
 		{
-			public override void CreateMap()
+			public TestMap2()
 			{
 				Map( m => m.Name );
 			}

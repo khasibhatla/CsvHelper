@@ -1,6 +1,6 @@
-﻿// Copyright 2009-2013 Josh Close
-// This file is a part of CsvHelper and is licensed under the MS-PL
-// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html
+﻿// Copyright 2009-2015 Josh Close and Contributors
+// This file is a part of CsvHelper and is dual licensed under MS-PL and Apache 2.0.
+// See LICENSE.txt for details or visit http://www.opensource.org/licenses/ms-pl.html for MS-PL and http://opensource.org/licenses/Apache-2.0 for Apache 2.0.
 // http://csvhelper.com
 using System.Collections.Generic;
 using System.IO;
@@ -88,7 +88,7 @@ namespace CsvHelper.Tests
 
 		private sealed class SameNameMultipleTimesClassMap : CsvClassMap<SameNameMultipleTimesClass>
 		{
-			public override void CreateMap()
+			public SameNameMultipleTimesClassMap()
 			{
 				Map( m => m.Name1 ).Name( "ColumnName" ).NameIndex( 1 );
 				Map( m => m.Name2 ).Name( "ColumnName" ).NameIndex( 2 );
@@ -105,7 +105,7 @@ namespace CsvHelper.Tests
 
 		private sealed class MultipleNamesClassMap : CsvClassMap<MultipleNamesClass>
 		{
-			public override void CreateMap()
+			public MultipleNamesClassMap()
 			{
 				Map( m => m.IntColumn ).Name( "int1", "int2", "int3" );
 				Map( m => m.StringColumn ).Name( "string1", "string2", "string3" );
